@@ -1,0 +1,210 @@
+name: lakehouse-lab
+
+# Settings come from .env (run "sh make-env.sh" once to create it).
+
+x-airflow: &airflow
+  image: ghcr.io/healta/lakehouse-lab-airflow:latest
+  build: images/airflow
+  restart: unless-stopped
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+    AIRFLOW__CORE__PARALLELISM: "4"
+    AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY:?run make-env.sh first}
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow:8080/execution/
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: lab:admin
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/passwords.json
+    AIRFLOW__API__WORKERS: "1"
+    AIRFLOW__API__SECRET_KEY: ${SIGNING_KEY:?run make-env.sh first}
+    AIRFLOW__API_AUTH__JWT_SECRET: ${SIGNING_KEY}
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg://lab:${LAB_PASSWORD}@postgres/airflow
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+    LAB_PASSWORD: ${LAB_PASSWORD}
+    # Connections, ready to use in DAGs under their default names
+    AIRFLOW_CONN_POSTGRES_DEFAULT: '{"conn_type": "postgres", "host": "postgres", "login": "lab", "password": "${LAB_PASSWORD}", "schema": "warehouse"}'
+    AIRFLOW_CONN_AWS_DEFAULT: '{"conn_type": "aws", "login": "lab", "password": "${LAB_PASSWORD}", "extra": {"endpoint_url": "http://s3:9000", "region_name": "us-east-1"}}'
+    AIRFLOW_CONN_SPARK_CONNECT_DEFAULT: '{"conn_type": "spark_connect", "host": "sc://spark", "port": 15002}'
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ${AIRFLOW_LOGS:-airflow-logs}:/opt/airflow/logs
+  depends_on:
+    airflow-init:
+      condition: service_completed_successfully
+
+services:
+  # ---------------------------------------------------------------- storage
+  postgres:
+    image: postgres:18.7
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lab
+      POSTGRES_PASSWORD: ${LAB_PASSWORD:?run make-env.sh first}
+      POSTGRES_DB: warehouse
+    ports:
+      - ${BIND_IP:-127.0.0.1}:25432:5432
+    volumes:
+      - ${POSTGRES_DATA:-postgres-data}:/var/lib/postgresql
+      - ./init/postgres.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U lab -d warehouse -h 127.0.0.1]
+      interval: 5s
+      retries: 30
+
+  s3:
+    image: rustfs/rustfs:1.0.6
+    restart: unless-stopped
+    environment:
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: 0.0.0.0:9000
+      RUSTFS_CONSOLE_ADDRESS: 0.0.0.0:9001
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_ACCESS_KEY: lab
+      RUSTFS_SECRET_KEY: ${LAB_PASSWORD}
+      RUSTFS_SERVER_DOMAINS: s3
+    networks:
+      default:
+        aliases: [lakehouse.s3]  # bucket-style address, used by Unity Catalog to delete dropped tables
+    ports:
+      - ${BIND_IP:-127.0.0.1}:29000:9000
+      - ${BIND_IP:-127.0.0.1}:29001:9001
+    volumes:
+      - ${S3_DATA:-s3-data}:/data
+    healthcheck:
+      test: [CMD, curl, -fsS, http://127.0.0.1:9000/health]
+      interval: 5s
+      retries: 30
+
+  # ------------------------------------------------- lakehouse (no login: only reachable from this machine)
+  unity-catalog:
+    image: ghcr.io/healta/lakehouse-lab-unity-catalog:latest
+    build: images/unity-catalog
+    restart: unless-stopped
+    environment:
+      JAVA_OPTS: -Xmx512m
+      PGHOST: postgres
+      PGUSER: lab
+      PGPASSWORD: ${LAB_PASSWORD}
+      PGDATABASE: unitycatalog
+      S3_BUCKET: lakehouse
+      AWS_ENDPOINT_URL: http://s3:9000
+      AWS_ACCESS_KEY_ID: lab
+      AWS_SECRET_ACCESS_KEY: ${LAB_PASSWORD}
+      AWS_REGION: us-east-1
+    ports:
+      - 127.0.0.1:28081:8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      s3:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, curl, -fsS, http://127.0.0.1:8080/api/2.1/unity-catalog/catalogs]
+      interval: 5s
+      retries: 30
+
+  # Creates the bucket, the catalog "main" and the schema "main.default", then exits.
+  lab-init:
+    image: ghcr.io/healta/lakehouse-lab-jupyter:latest
+    build: images/jupyter
+    restart: "no"
+    command: [python, /bootstrap.py]
+    environment: &lab-env
+      SPARK_REMOTE: sc://spark:15002
+      UNITY_CATALOG_URL: http://unity-catalog:8080
+      AWS_ENDPOINT_URL: http://s3:9000
+      AWS_ACCESS_KEY_ID: lab
+      AWS_SECRET_ACCESS_KEY: ${LAB_PASSWORD}
+      AWS_DEFAULT_REGION: us-east-1
+      PGHOST: postgres
+      PGUSER: lab
+      PGPASSWORD: ${LAB_PASSWORD}
+      PGDATABASE: warehouse
+    volumes:
+      - ./init/bootstrap.py:/bootstrap.py:ro
+    depends_on:
+      unity-catalog:
+        condition: service_healthy
+
+  spark:
+    image: ghcr.io/healta/lakehouse-lab-spark:latest
+    build: images/spark
+    restart: unless-stopped
+    command: [--driver-memory, "${SPARK_MEMORY:-2g}"]
+    environment:
+      # for reading and writing files by path; tables get their keys from Unity Catalog
+      AWS_ACCESS_KEY_ID: lab
+      AWS_SECRET_ACCESS_KEY: ${LAB_PASSWORD}
+    ports:
+      - 127.0.0.1:15002:15002
+      - 127.0.0.1:24040:4040
+    depends_on:
+      lab-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, bash, -c, "</dev/tcp/127.0.0.1/15002"]
+      interval: 5s
+      retries: 30
+
+  # ---------------------------------------------------------------- notebooks
+  jupyter:
+    image: ghcr.io/healta/lakehouse-lab-jupyter:latest
+    build: images/jupyter
+    restart: unless-stopped
+    user: ${LAB_UID:-1000}:${LAB_GID:-1000}
+    environment:
+      <<: *lab-env
+      JUPYTER_TOKEN: ${LAB_PASSWORD}
+    ports:
+      - ${BIND_IP:-127.0.0.1}:28888:8888
+    volumes:
+      - ./notebooks:/home/lab/work/notebooks
+      - ./dags:/home/lab/work/dags
+    depends_on:
+      spark:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------- orchestration
+  airflow-init:
+    <<: *airflow
+    restart: "no"
+    command: [airflow, db, migrate]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  airflow:
+    <<: *airflow
+    command:
+      - bash
+      - -c
+      - |
+        echo "{\"lab\": \"$$LAB_PASSWORD\"}" > passwords.json
+        exec airflow api-server
+    ports:
+      - ${BIND_IP:-127.0.0.1}:28080:8080
+    healthcheck:
+      test: [CMD, curl, -fsS, http://127.0.0.1:8080/api/v2/monitor/health]
+      interval: 10s
+      retries: 30
+
+  airflow-scheduler:
+    <<: *airflow
+    command: [airflow, scheduler]
+    healthcheck:
+      test: [CMD, curl, -fsS, http://127.0.0.1:8974/health]
+      interval: 10s
+      retries: 30
+
+  airflow-dag-processor:
+    <<: *airflow
+    command: [airflow, dag-processor]
+
+  airflow-triggerer:
+    <<: *airflow
+    command: [airflow, triggerer]
+
+volumes:
+  postgres-data:
+  s3-data:
+  airflow-logs:
