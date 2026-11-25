@@ -1,0 +1,6 @@
+models:
+  - name: hello_dbt
+    description: Says hello.
+    columns:
+      - name: message
+        data_tests: [not_null]

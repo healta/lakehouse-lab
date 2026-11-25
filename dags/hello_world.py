@@ -23,7 +23,11 @@ def hello_world():
         spark.sql("INSERT INTO main.default.hello_airflow VALUES ('Hello from Airflow', current_timestamp())")
         spark.table("main.default.hello_airflow").show(truncate=False)
 
-    [hello_postgres(), hello_s3()] >> hello_spark()
+    @task.bash(cwd="/opt/airflow/dbt/hello_world")
+    def hello_dbt():
+        return "dbt build"
+
+    [hello_postgres(), hello_s3()] >> hello_spark() >> hello_dbt()
 
 
 hello_world()

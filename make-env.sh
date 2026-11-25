@@ -20,7 +20,7 @@ AIRFLOW_LOGS=$PWD/data/airflow-logs"
   mkdir -p data/postgres data/s3 data/airflow-logs
   chown 10001:10001 data/s3
   chown 50000:0 data/airflow-logs
-  chown -R 568:568 notebooks dags
+  chown -R 568:568 notebooks dags dbt
 fi
 
 if [ -e .env ]; then echo ".env already exists, kept as it is"; exit 0; fi
@@ -44,7 +44,7 @@ BIND_IP=$BIND_IP
 # Memory for Spark
 SPARK_MEMORY=2g
 
-# Owner of the notebooks and dags folders
+# Owner of the notebooks, dags and dbt folders
 LAB_UID=$OWNER
 LAB_GID=$OWNER
 $DATA

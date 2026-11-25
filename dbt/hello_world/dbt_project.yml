@@ -1,0 +1,10 @@
+name: hello_world
+profile: lakehouse
+
+flags:
+  send_anonymous_usage_stats: false
+
+# Unity Catalog stores Delta tables only. Seeds and snapshots need the same line once you add some.
+models:
+  +materialized: table
+  +file_format: delta

@@ -3,6 +3,8 @@ RUN pip install --no-cache-dir \
       jupyterlab==4.6.6 \
       pyspark-client==4.2.0 \
       pandas==2.3.3 \
+      dbt-core==1.12.7 \
+      dbt-spark==1.11.1 \
       boto3 \
       "psycopg[binary]"
 ENV HOME=/home/lab

@@ -1,0 +1,10 @@
+# How dbt reaches Spark. The address comes from SPARK_REMOTE (Spark Connect), so host is not used.
+lakehouse:
+  target: lab
+  outputs:
+    lab:
+      type: spark
+      method: session
+      host: NA
+      schema: default
+      threads: 2

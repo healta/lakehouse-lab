@@ -9,23 +9,13 @@ Everything is connected and there is a hello world for each part. Nothing more.
 | **Unity Catalog** (open source) | Databricks Unity Catalog, AWS Glue Catalog | 0.7.0 |
 | **RustFS** | S3 | 1.0.6 |
 | **Airflow** | Databricks Jobs, Amazon MWAA | 3.4.0 |
+| **dbt** | itself: this is the real dbt Core, with the Spark adapter | 1.12.7 + 1.11.1 |
 | **Postgres** | Amazon RDS | 18.7 |
 | **JupyterLab** | Databricks notebooks | 4.6 |
 
-```mermaid
-flowchart LR
-  J[Jupyter] --> SC[Spark + Delta]
-  A[Airflow] --> SC
-  SC --> UC[Unity Catalog]
-  SC --> S3[(RustFS / S3)]
-  UC --> PG[(Postgres)]
-  A --> PG
-  J --> PG
-  J --> S3
-  A --> S3
-```
+![How the parts connect](docs/architecture.svg)
 
-Jupyter and Airflow are thin clients: your code runs on the Spark server, the way Databricks Connect works.
+Jupyter, Airflow and dbt are thin clients: your code runs on the Spark server, the way Databricks Connect works.
 
 ## Run it on a PC
 
@@ -57,9 +47,10 @@ The password is the same everywhere. It is in `.env`.
 * **Jupyter**: open `notebooks/hello_world.ipynb` and run all cells.
 * **Airflow**: open the `hello_world` DAG and press Trigger.
 
-Both write a Delta table through Unity Catalog, put a file in S3 and ask Postgres for its version.
+Both write a Delta table through Unity Catalog, run dbt, put a file in S3 and ask Postgres for its version.
 
-Your own notebooks go in `notebooks/` and your DAGs in `dags/`. Both folders are also visible inside Jupyter.
+Your own notebooks go in `notebooks/`, your DAGs in `dags/` and your dbt projects in `dbt/`. All three folders are also
+visible inside Jupyter.
 
 ### How to reach things from code
 
@@ -73,6 +64,16 @@ psycopg.connect()
 ```
 
 In Airflow use the default connections: `@task.pyspark(conn_id="spark_connect_default")`, `S3Hook()`, `PostgresHook()`.
+
+dbt is ready in both. In a Jupyter terminal:
+
+```sh
+cd dbt/hello_world
+dbt build
+```
+
+In Airflow, use `@task.bash(cwd="/opt/airflow/dbt/hello_world")` on a function that returns `"dbt build"`.
+To start your own project, copy the `hello_world` folder and change the name in `dbt_project.yml`.
 
 ### Keep it running on Windows
 
@@ -88,6 +89,7 @@ vmIdleTimeout=-1
 ```
 
 After a reboot, start WSL once (`wsl -d Ubuntu true`) and the containers come back by themselves.
+If WSL hangs after the PC was asleep, run `wsl --shutdown --force` and start it again.
 
 ## Deploy on TrueNAS
 
@@ -130,7 +132,8 @@ sudo sh make-env.sh truenas      # keeps your .env, only repairs file owners
 sudo docker compose pull
 ```
 
-and start the app again. Your data and your own notebooks and DAGs are not touched, only the hello world files are replaced.
+and start the app again. Your data and your own notebooks, DAGs and dbt projects are not touched. Only the hello world files and
+`dbt/profiles.yml` are replaced.
 
 ## How heavy is it
 
@@ -154,7 +157,11 @@ Plan for 6 GB of free memory and 10 GB of disk. If that is too much:
 
 ## Good to know
 
-* **Versions move together.** Spark 4.3 exists, but Delta Lake and Unity Catalog do not support it yet.
+* **Versions move together.** Spark 4.3 exists, but Delta Lake and Unity Catalog do not support it yet. dbt 2 exists, but
+  its Spark support is in beta and cannot use Spark Connect.
+* **dbt views**: Unity Catalog [cannot replace a view yet](https://github.com/unitycatalog/unitycatalog/pull/1982), so a
+  [small macro](dbt/hello_world/macros/unity_catalog_views.sql) drops and creates it. To turn a view into a table, first
+  drop it yourself: `DROP VIEW main.default.name`.
 * **`OPTIMIZE` and `VACUUM` are refused on managed tables** by Unity Catalog until Delta 4.5. They work on external
   tables: `CREATE TABLE ... USING DELTA LOCATION 's3://lakehouse/external/name'`.
 * **Files of dropped tables** are deleted from S3 after 7 days.

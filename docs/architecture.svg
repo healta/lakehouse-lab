@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 690" width="960" height="690" role="img" font-family="system-ui, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="#24292f" aria-label="You work in Airflow or JupyterLab. Both send code, or SQL from dbt, to Spark. Spark asks Unity Catalog where a table is, gets its location and one-hour keys, then reads and writes the files in RustFS. Postgres keeps the run history of Airflow and the table list of Unity Catalog.">
+  <defs>
+    <marker id="main" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#b3430e"/></marker>
+    <marker id="side" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#6e7781"/></marker>
+  </defs>
+  <rect width="960" height="690" rx="14" fill="#ffffff"/>
+
+  <!-- layers -->
+  <g fill="#f3f5f8">
+    <rect x="20" y="96" width="920" height="162" rx="10"/>
+    <rect x="20" y="302" width="920" height="114" rx="10"/>
+    <rect x="20" y="482" width="920" height="158" rx="10"/>
+  </g>
+  <g font-weight="600" fill="#57606a">
+    <text x="36" y="118">You work here</text>
+    <text x="36" y="324">Computing happens here</text>
+    <text x="36" y="504">Things are kept here</text>
+  </g>
+
+  <!-- supporting connections -->
+  <g fill="none" stroke="#6e7781" stroke-width="1.5">
+    <path d="M420 62L300 126" marker-end="url(#side)"/>
+    <path d="M540 62L660 126" marker-end="url(#side)"/>
+    <path d="M230 242V514" marker-end="url(#side)"/>
+    <path d="M862 242V514" marker-end="url(#side)"/>
+    <path d="M360 570H292" marker-end="url(#side)"/>
+    <path d="M600 570H676" marker-end="url(#side)"/>
+  </g>
+  <g fill="#57606a">
+    <text x="240" y="366">keeps its</text><text x="240" y="383">run history</text>
+    <text x="872" y="366">single</text><text x="872" y="383">files</text>
+    <text x="326" y="561" text-anchor="middle">table list</text>
+    <text x="638" y="561" text-anchor="middle">gets keys</text>
+  </g>
+
+  <!-- the main path, 1 to 4 -->
+  <g fill="none" stroke="#b3430e" stroke-width="2">
+    <path d="M330 242L408 326" marker-end="url(#main)"/>
+    <path d="M630 242L552 326" marker-end="url(#main)"/>
+    <path d="M462 402V514" marker-end="url(#main)"/>
+    <path d="M498 516V404" marker-end="url(#main)"/>
+    <path d="M620 365H738V514" marker-end="url(#main)"/>
+  </g>
+  <g fill="#b3430e">
+    <circle cx="432" cy="280" r="10"/><circle cx="315" cy="449" r="10"/><circle cx="518" cy="449" r="10"/><circle cx="758" cy="449" r="10"/>
+  </g>
+  <g fill="#ffffff" font-size="12" font-weight="700" text-anchor="middle">
+    <text x="432" y="284">1</text><text x="315" y="453">2</text><text x="518" y="453">3</text><text x="758" y="453">4</text>
+  </g>
+  <g fill="#8f3409" font-weight="600">
+    <text x="448" y="284">code or SQL</text>
+    <text x="331" y="453">where is the table?</text>
+    <text x="534" y="453">location, one-hour keys</text>
+    <text x="774" y="445">reads and</text><text x="774" y="461">writes data</text>
+  </g>
+
+  <!-- boxes -->
+  <g stroke-width="1.5">
+    <rect x="380" y="22" width="200" height="40" rx="20" fill="#ffffff" stroke="#6e7781"/>
+    <rect x="80" y="128" width="300" height="114" rx="10" fill="#ffffff" stroke="#2f6fb3"/>
+    <rect x="580" y="128" width="300" height="114" rx="10" fill="#ffffff" stroke="#2f6fb3"/>
+    <rect x="340" y="328" width="280" height="74" rx="10" fill="#ffffff" stroke="#b3430e"/>
+    <rect x="50" y="516" width="240" height="108" rx="10" fill="#ffffff" stroke="#2c7a4b"/>
+    <rect x="360" y="516" width="240" height="108" rx="10" fill="#ffffff" stroke="#2c7a4b"/>
+    <rect x="678" y="516" width="242" height="108" rx="10" fill="#ffffff" stroke="#2c7a4b"/>
+    <g stroke="none">
+      <rect x="96" y="207" width="268" height="26" rx="6" fill="#e6effa"/>
+      <rect x="596" y="207" width="268" height="26" rx="6" fill="#e6effa"/>
+      <rect x="506" y="341" width="98" height="26" rx="6" fill="#fdebdf"/>
+    </g>
+  </g>
+  <g font-size="17" font-weight="700">
+    <text x="96" y="156">Airflow</text>
+    <text x="596" y="156">JupyterLab</text>
+    <text x="356" y="360">Spark</text>
+    <text x="66" y="543">Postgres</text>
+    <text x="376" y="543">Unity Catalog</text>
+    <text x="694" y="543">RustFS (S3)</text>
+  </g>
+  <text x="480" y="47" text-anchor="middle" font-size="14" font-weight="600">You, in a browser</text>
+  <g>
+    <text x="96" y="177">runs your jobs on a schedule</text>
+    <text x="596" y="177">where you write and try code</text>
+    <text x="106" y="225"><tspan font-weight="700">dbt</tspan>  turns .sql files into tables</text>
+    <text x="606" y="225"><tspan font-weight="700">dbt</tspan>  turns .sql files into tables</text>
+    <text x="555" y="359" text-anchor="middle" font-weight="700">Delta Lake</text>
+    <text x="356" y="386">reads, joins, counts and writes data</text>
+    <text x="66" y="564">an ordinary database, with</text><text x="66" y="581">room for your own tables</text>
+    <text x="376" y="564">the list of all tables: names,</text><text x="376" y="581">columns, where the files are</text>
+    <text x="694" y="564">the files the tables are made of</text>
+  </g>
+  <g fill="#57606a">
+    <text x="96" y="196">localhost:28080</text>
+    <text x="596" y="196">localhost:28888</text>
+    <text x="66" y="609">localhost:25432</text>
+    <text x="376" y="609">localhost:28081</text>
+    <text x="694" y="609">localhost:29001</text>
+    <text x="480" y="669" text-anchor="middle">Follow 1 to 4: what happens when a notebook, a job or dbt touches a table.</text>
+  </g>
+</svg>
